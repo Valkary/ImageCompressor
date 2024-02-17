@@ -55,6 +55,9 @@ public class ImageCompressor {
             File myObj = new File("filename.txt");
             myObj.createNewFile();
             FileWriter myWriter = new FileWriter("filename.txt");
+            myWriter.write("COMPRESSION\n");
+            myWriter.write(compression_value + "\n");
+            myWriter.write("DIMENSIONS\n");
             myWriter.write(compressed_rows + " " + compressed_cols + "\n");
             myWriter.write("COLORS\n");
             String dictionary = colors.stream().map(Object::toString).collect(Collectors.joining(",")) + "\n";
@@ -103,14 +106,15 @@ public class ImageCompressor {
             BufferedReader reader = new BufferedReader(new FileReader("filename.txt"));
 
             enum STAGES {
+                COMPRESSION_FACTOR,
                 DIMENSIONS,
                 COLORS,
                 PIXELS,
                 EOF
             };
 
-            STAGES stage = STAGES.DIMENSIONS;
-            int rows, cols = 0, curr_row = 0;
+            STAGES stage = STAGES.COMPRESSION_FACTOR;
+            int rows, cols = 0, curr_row = 0, compression;
             List<Long> colors = new ArrayList<>();
             BufferedImage output = null;
 
@@ -121,13 +125,18 @@ public class ImageCompressor {
                     case "EOF" -> stage = STAGES.EOF;
                     case "COLORS" -> stage = STAGES.COLORS;
                     case "PIXELS" -> stage = STAGES.PIXELS;
+                    case "COMPRESSION" -> stage = STAGES.COMPRESSION_FACTOR;
+                    case "DIMENSIONS" -> stage = STAGES.DIMENSIONS;
                     default -> {
                         switch (stage) {
+                            case COMPRESSION_FACTOR -> {
+                                String compression_string = line.replace("\n", "");
+                                compression = Integer.parseInt(compression_string);
+                            }
                             case DIMENSIONS -> {
                                 String[] dimensions = line.replace("\n", "").split(" ");
                                 rows = Integer.parseInt(dimensions[0]);
                                 cols = Integer.parseInt(dimensions[1]);
-                                System.out.println(rows + "x" + cols);
                                 output = new BufferedImage(cols, rows, BufferedImage.TYPE_INT_RGB);
                             }
                             case COLORS -> {
@@ -145,7 +154,7 @@ public class ImageCompressor {
                                 }
 
                                 for (int col = 0; col < cols; col++) {
-                                    output.setRGB(col, curr_row, Integer.parseInt(pixel_strings[col]));
+                                    output.setRGB(col, curr_row, Math.toIntExact(colors.get(Integer.parseInt(pixel_strings[col]))));
                                 }
 
                                 curr_row++;
@@ -197,8 +206,6 @@ public class ImageCompressor {
             int avgRed = (int)(total_red / iters);
             int avgGreen = (int)(total_green / iters);
             int avgBlue = (int)(total_blue / iters);
-
-            System.out.println("RGB = (" + avgRed + ", " + avgGreen + ", " + avgBlue + ")");
 
             return new Color(avgRed, avgGreen, avgBlue);
         }
