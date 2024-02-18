@@ -1,11 +1,13 @@
 import tools.FileHandler;
 import tools.IOConsole;
+import tools.Tuple;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -114,9 +116,10 @@ public class ImageCompressor {
             };
 
             STAGES stage = STAGES.COMPRESSION_FACTOR;
-            int rows, cols = 0, curr_row = 0, compression;
-            List<Long> colors = new ArrayList<>();
-            BufferedImage output = null;
+            int rows = 0, cols = 0, curr_row = 0, compression;
+
+            List<Color> colors_buffer = new ArrayList<>();
+            Color[][] compressed_pixels_buffer = null;
 
             do {
                 String line = reader.readLine();
@@ -137,26 +140,18 @@ public class ImageCompressor {
                                 String[] dimensions = line.replace("\n", "").split(" ");
                                 rows = Integer.parseInt(dimensions[0]);
                                 cols = Integer.parseInt(dimensions[1]);
-                                output = new BufferedImage(cols, rows, BufferedImage.TYPE_INT_RGB);
+                                compressed_pixels_buffer = new Color[rows][cols];
                             }
                             case COLORS -> {
                                 String[] color_strings = line.replace("\n", "").split(",");
 
                                 for (String colorString : color_strings) {
-                                    colors.add(Long.parseLong(colorString, 16));
+                                    Color curr_color = new Color(Integer.parseInt(colorString, 16));
+                                    colors_buffer.add(curr_color);
                                 }
                             }
                             case PIXELS -> {
-                                String[] pixel_strings = line.replace("\n", "").split(",");
-
-                                if (output == null) {
-                                    throw new RuntimeException();
-                                }
-
-                                for (int col = 0; col < cols; col++) {
-                                    output.setRGB(col, curr_row, Math.toIntExact(colors.get(Integer.parseInt(pixel_strings[col]))));
-                                }
-
+                                generatePixelDataFromCompressedFile(line, compressed_pixels_buffer, colors_buffer, curr_row, cols);
                                 curr_row++;
                             }
                         }
@@ -164,6 +159,7 @@ public class ImageCompressor {
                 }
             } while (!stage.equals(STAGES.EOF));
 
+            BufferedImage output = buildDecompressedImage(compressed_pixels_buffer, cols, rows, compression_value);
             renderImage("result", "bmp", output);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -222,4 +218,64 @@ public class ImageCompressor {
             }
         }
     }
+
+    private void generatePixelDataFromCompressedFile(String row_pixels, Color[][] pixels, List<Color> colors, int curr_row, int total_cols) {
+        String[] pixel_strings = row_pixels.replace("\n", "").split(",");
+
+        for (int col = 0; col < total_cols; col++) {
+            pixels[curr_row][col] = colors.get(Integer.parseInt(pixel_strings[col]));
+        }
+    };
+
+    private BufferedImage buildDecompressedImage(Color[][] pixel_buffer, int cols, int rows, int compression_factor) {
+        image = new BufferedImage(cols * compression_factor, rows * compression_factor, BufferedImage.TYPE_INT_RGB);
+
+        for (int y = 0; y < rows * compression_factor - compression_factor; y++) {
+            for (int x = 0; x < cols * compression_factor - compression_factor; x++) {
+                Tuple<Integer, Integer> p = new Tuple<>(x,y);
+                p.print();
+                Color intermediate_color = bilinearInterpolation(p, compression_factor, pixel_buffer);
+                image.setRGB(x,y,intermediate_color.getRGB());
+            }
+        }
+
+        return image;
+    }
+
+    private Color bilinearInterpolation(Tuple<Integer, Integer> p, int compression_factor, Color[][] colors) {
+        int x = p.x / compression_factor;
+        int y = p.y / compression_factor;
+
+        Color q11 = colors[y][x]; // bottom left
+        Color q12 = colors[y + 1][x]; // top left
+        Color q21 = colors[y][x + 1]; // bottom right
+        Color q22 = colors[y + 1][x + 1]; // top right
+
+        float x1 = x * compression_factor;
+        float x2 = x1 + compression_factor;
+        float y1 = y * compression_factor;
+        float y2 = y1 + compression_factor;
+
+        float x_diff = (p.x - x1) / (x2 - x1);
+        float y_diff = (p.y - y1) / (y2 - y1);
+
+        Color interpolatedColor = new Color(
+                interpolate(q11.getRed(), q12.getRed(), q21.getRed(), q22.getRed(), x_diff, y_diff),
+                interpolate(q11.getGreen(), q12.getGreen(), q21.getGreen(), q22.getGreen(), x_diff, y_diff),
+                interpolate(q11.getBlue(), q12.getBlue(), q21.getBlue(), q22.getBlue(), x_diff, y_diff)
+        );
+
+        return interpolatedColor;
+    }
+
+    private int interpolate(int q11, int q12, int q21, int q22, float x_diff, float y_diff) {
+        // Bilinear interpolation formula
+        int b1 = (int) (q11 * (1 - x_diff) * (1 - y_diff));
+        int b2 = (int) (q21 * x_diff * (1 - y_diff));
+        int b3 = (int) (q12 * (1 - x_diff) * y_diff);
+        int b4 = (int) (q22 * x_diff * y_diff);
+
+        return b1 + b2 + b3 + b4;
+    }
+
 }
