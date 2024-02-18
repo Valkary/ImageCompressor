@@ -7,13 +7,14 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class ImageCompressor {
     private static final IOConsole console = new IOConsole();
 
-    public static void compressImage(int compression_factor, String file_path) {
+    public static void compressImage(int compression_factor, String file_path, String output_file_name) {
         BufferedImage image = FileHandler.getBufferedImage(console, file_path);
         int rows = image.getHeight();
         int cols = image.getWidth();
@@ -42,40 +43,43 @@ public class ImageCompressor {
         }
 
         try {
-            File myObj = new File("filename.txt");
+            File myObj = new File(output_file_name + ".txt");
             myObj.createNewFile();
-            FileWriter myWriter = new FileWriter("filename.txt");
-            myWriter.write("COMPRESSION\n");
-            myWriter.write(compression_factor + "\n");
-            myWriter.write("DIMENSIONS\n");
-            myWriter.write(compressed_rows + " " + compressed_cols + "\n");
-            myWriter.write("COLORS\n");
-            String dictionary = colors.stream().map(Object::toString).collect(Collectors.joining(",")) + "\n";
-            myWriter.write(dictionary);
-            myWriter.write("PIXELS\n");
-            StringBuilder pixels = new StringBuilder();
+            FileWriter myWriter = new FileWriter(output_file_name + ".txt");
 
-            for (int i = 0; i < compressed_pixels.length; i++) {
-                for (int j = 0; j < compressed_pixels[i].length; j++) {
-                    pixels.append(compressed_pixels[i][j]);
-                    if (j < compressed_pixels[i].length - 1) {
-                        pixels.append(",");
-                    }
-                }
-                if (i < compressed_pixels.length - 1) {
-                    pixels.append("\n");
-                }
-            }
+            FileHandler.writeLineToFile(myWriter, "COMPRESSION");
+            FileHandler.writeLineToFile(myWriter, "" + compression_factor);
+            FileHandler.writeLineToFile(myWriter, "DIMENSIONS");
+            FileHandler.writeLineToFile(myWriter, compressed_rows + " " + compressed_cols);
+            FileHandler.writeLineToFile(myWriter, "COLORS");
+            FileHandler.writeLineToFile(myWriter, colors.stream().map(Object::toString).collect(Collectors.joining(",")));
+            FileHandler.writeLineToFile(myWriter, "PIXELS");
+            FileHandler.writeLineToFile(myWriter, buildPixelMatrixString(compressed_pixels));
+            FileHandler.writeLineToFile(myWriter, "EOF");
 
-            String pixelsStr = pixels.toString();
-
-            myWriter.write(pixelsStr);
-            myWriter.write("\nEOF\n");
             myWriter.close();
         } catch (Exception e) {
-            System.out.println("An error occurred.");
-            System.out.println(e.getStackTrace());
+            console.showInfo("==> Error writing to compressed file");
+            console.showInfo(Arrays.toString(e.getStackTrace()));
         }
+    }
+
+    private static String buildPixelMatrixString(int[][] compressed_pixels) {
+        StringBuilder pixels = new StringBuilder();
+
+        for (int i = 0; i < compressed_pixels.length; i++) {
+            for (int j = 0; j < compressed_pixels[i].length; j++) {
+                pixels.append(compressed_pixels[i][j]);
+                if (j < compressed_pixels[i].length - 1) {
+                    pixels.append(",");
+                }
+            }
+            if (i < compressed_pixels.length - 1) {
+                pixels.append("\n");
+            }
+        }
+
+        return pixels.toString();
     }
 
     public static String convertColorToHexString(Color color) {
@@ -91,9 +95,9 @@ public class ImageCompressor {
       return hex_color;
     };
 
-    public static void decompressImage() {
+    public static void decompressImage(String file_path, String img_name) {
         try {
-            BufferedReader reader = new BufferedReader(new FileReader("filename.txt"));
+            BufferedReader reader = new BufferedReader(new FileReader(file_path));
 
             enum STAGES {
                 COMPRESSION_FACTOR,
@@ -148,18 +152,14 @@ public class ImageCompressor {
             } while (!stage.equals(STAGES.EOF));
 
             BufferedImage output = buildDecompressedImage(compressed_pixels_buffer, cols, rows, compression_factor);
-            renderImage("result", "bmp", output);
+            try {
+                FileHandler.renderBufferedImage(img_name, "bmp", output);
+            } catch (IOException e) {
+                console.showInfo("==> Error rendering BufferedImage to file");
+                console.showInfo(String.valueOf(e));
+            }
+
         } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static void renderImage(String name, String format, BufferedImage image) {
-        File output = new File(name + "." + format);
-
-        try {
-            ImageIO.write(image, format, output);
-        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }

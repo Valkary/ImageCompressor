@@ -3,6 +3,7 @@ package tools;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -126,5 +127,23 @@ public class FileHandler {
         List<String> list = Arrays.asList(mime_types);
 
         return list.contains(split_path[split_path.length - 1]);
+    }
+
+    public static void writeLineToFile(FileWriter writer, String line) throws IOException {
+        try {
+            writer.write(line + "\n");
+        } catch (IOException e) {
+            throw new IOException(e);
+        }
+    }
+
+    public static void renderBufferedImage(String name, String format, BufferedImage image) throws IOException {
+        File output = new File(name + "." + format);
+
+        try {
+            ImageIO.write(image, format, output);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
