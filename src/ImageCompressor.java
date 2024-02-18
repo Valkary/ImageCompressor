@@ -7,41 +7,29 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class ImageCompressor {
-    BufferedImage image;
-    IOConsole console;
-    Color[][] pixels;
-    int rows,cols, compression_value = 4;
+    private static final IOConsole console = new IOConsole();
 
-    ImageCompressor() {
-        console = new IOConsole();
-        image = FileHandler.getBufferedImage(console);
-        generatePixelData();
-    }
-
-    ImageCompressor(String img_path) {
-        console = new IOConsole();
-        image = FileHandler.getBufferedImage(console, img_path);
-        generatePixelData();
-    }
-
-    public void compressImage() {
+    public static void compressImage(int compression_factor, String file_path) {
+        BufferedImage image = FileHandler.getBufferedImage(console, file_path);
+        int rows = image.getHeight();
+        int cols = image.getWidth();
+        Color[][] pixel_buffer = generatePixelData(image);
         List<String> colors = new ArrayList<>();
-        int compressed_rows = (int)Math.ceil(((float)rows/compression_value));
-        int compressed_cols = (int)Math.ceil(((float)cols/compression_value));
+        int compressed_rows = (int)Math.ceil(((float)rows/compression_factor));
+        int compressed_cols = (int)Math.ceil(((float)cols/compression_factor));
         int[][] compressed_pixels = new int[compressed_rows][compressed_cols];
 
-        for (int row = 0; row < rows; row += compression_value) {
-            int compressed_row = (int)Math.floor((double) row / compression_value);
+        for (int row = 0; row < rows; row += compression_factor) {
+            int compressed_row = (int)Math.floor((double) row / compression_factor);
 
-            for (int col = 0; col < cols; col += compression_value) {
-                int compressed_col = (int)Math.floor((double) col / compression_value);
+            for (int col = 0; col < cols; col += compression_factor) {
+                int compressed_col = (int)Math.floor((double) col / compression_factor);
 
-                Color color = calculateRegionColorAverage(col, row);
+                Color color = calculateRegionColorAverage(col, row, rows, cols, pixel_buffer, compression_factor);
                 String hex_color = convertColorToHexString(color);
 
                 if (!colors.contains(hex_color)) {
@@ -58,7 +46,7 @@ public class ImageCompressor {
             myObj.createNewFile();
             FileWriter myWriter = new FileWriter("filename.txt");
             myWriter.write("COMPRESSION\n");
-            myWriter.write(compression_value + "\n");
+            myWriter.write(compression_factor + "\n");
             myWriter.write("DIMENSIONS\n");
             myWriter.write(compressed_rows + " " + compressed_cols + "\n");
             myWriter.write("COLORS\n");
@@ -90,7 +78,7 @@ public class ImageCompressor {
         }
     }
 
-    public String convertColorToHexString(Color color) {
+    public static String convertColorToHexString(Color color) {
       String hex_color = "";
       String red_hue = Integer.toHexString(color.getRed());
       String green_hue = Integer.toHexString(color.getGreen());
@@ -103,7 +91,7 @@ public class ImageCompressor {
       return hex_color;
     };
 
-    public void decompressImage() {
+    public static void decompressImage() {
         try {
             BufferedReader reader = new BufferedReader(new FileReader("filename.txt"));
 
@@ -116,7 +104,7 @@ public class ImageCompressor {
             };
 
             STAGES stage = STAGES.COMPRESSION_FACTOR;
-            int rows = 0, cols = 0, curr_row = 0, compression;
+            int rows = 0, cols = 0, curr_row = 0, compression_factor = 1;
 
             List<Color> colors_buffer = new ArrayList<>();
             Color[][] compressed_pixels_buffer = null;
@@ -134,7 +122,7 @@ public class ImageCompressor {
                         switch (stage) {
                             case COMPRESSION_FACTOR -> {
                                 String compression_string = line.replace("\n", "");
-                                compression = Integer.parseInt(compression_string);
+                                compression_factor = Integer.parseInt(compression_string);
                             }
                             case DIMENSIONS -> {
                                 String[] dimensions = line.replace("\n", "").split(" ");
@@ -159,14 +147,14 @@ public class ImageCompressor {
                 }
             } while (!stage.equals(STAGES.EOF));
 
-            BufferedImage output = buildDecompressedImage(compressed_pixels_buffer, cols, rows, compression_value);
+            BufferedImage output = buildDecompressedImage(compressed_pixels_buffer, cols, rows, compression_factor);
             renderImage("result", "bmp", output);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void renderImage(String name, String format, BufferedImage image) {
+    private static void renderImage(String name, String format, BufferedImage image) {
         File output = new File(name + "." + format);
 
         try {
@@ -176,16 +164,16 @@ public class ImageCompressor {
         }
     }
 
-    private Color calculateRegionColorAverage(int x, int y) {
+    private static Color calculateRegionColorAverage(int x, int y, int rows, int cols, Color[][] pixel_buffer, int compression_factor) {
         long total_red = 0;
         long total_green = 0;
         long total_blue = 0;
         int iters = 0;
 
-        for (int row = y; row < y + compression_value; row++) {
-            for (int col = x; col < x + compression_value; col++) {
+        for (int row = y; row < y + compression_factor; row++) {
+            for (int col = x; col < x + compression_factor; col++) {
                 if (row < rows && col < cols) {
-                    Color color = pixels[row][col];
+                    Color color = pixel_buffer[row][col];
 
                     total_red += color.getRed();
                     total_green += color.getGreen();
@@ -207,19 +195,21 @@ public class ImageCompressor {
         }
     }
 
-    private void generatePixelData() {
-        rows = image.getHeight();
-        cols = image.getWidth();
-        pixels = new Color[rows][cols];
+    private static Color[][] generatePixelData(BufferedImage image) {
+        int rows = image.getHeight();
+        int cols = image.getWidth();
+        Color[][] pixel_buffer = new Color[rows][cols];
 
         for (int x = 0; x < cols; x++) {
             for (int y = 0; y < rows; y++) {
-                pixels[y][x] = new Color(image.getRGB(x,y), false);
+                pixel_buffer[y][x] = new Color(image.getRGB(x,y), false);
             }
         }
+
+        return pixel_buffer;
     }
 
-    private void generatePixelDataFromCompressedFile(String row_pixels, Color[][] pixels, List<Color> colors, int curr_row, int total_cols) {
+    private static void generatePixelDataFromCompressedFile(String row_pixels, Color[][] pixels, List<Color> colors, int curr_row, int total_cols) {
         String[] pixel_strings = row_pixels.replace("\n", "").split(",");
 
         for (int col = 0; col < total_cols; col++) {
@@ -227,13 +217,12 @@ public class ImageCompressor {
         }
     };
 
-    private BufferedImage buildDecompressedImage(Color[][] pixel_buffer, int cols, int rows, int compression_factor) {
-        image = new BufferedImage(cols * compression_factor, rows * compression_factor, BufferedImage.TYPE_INT_RGB);
+    private static BufferedImage buildDecompressedImage(Color[][] pixel_buffer, int cols, int rows, int compression_factor) {
+        BufferedImage image = new BufferedImage(cols * compression_factor, rows * compression_factor, BufferedImage.TYPE_INT_RGB);
 
         for (int y = 0; y < rows * compression_factor - compression_factor; y++) {
             for (int x = 0; x < cols * compression_factor - compression_factor; x++) {
                 Tuple<Integer, Integer> p = new Tuple<>(x,y);
-                p.print();
                 Color intermediate_color = bilinearInterpolation(p, compression_factor, pixel_buffer);
                 image.setRGB(x,y,intermediate_color.getRGB());
             }
@@ -242,7 +231,7 @@ public class ImageCompressor {
         return image;
     }
 
-    private Color bilinearInterpolation(Tuple<Integer, Integer> p, int compression_factor, Color[][] colors) {
+    private static Color bilinearInterpolation(Tuple<Integer, Integer> p, int compression_factor, Color[][] colors) {
         int x = p.x / compression_factor;
         int y = p.y / compression_factor;
 
@@ -268,7 +257,7 @@ public class ImageCompressor {
         return interpolatedColor;
     }
 
-    private int interpolate(int q11, int q12, int q21, int q22, float x_diff, float y_diff) {
+    private static int interpolate(int q11, int q12, int q21, int q22, float x_diff, float y_diff) {
         // Bilinear interpolation formula
         int b1 = (int) (q11 * (1 - x_diff) * (1 - y_diff));
         int b2 = (int) (q21 * x_diff * (1 - y_diff));

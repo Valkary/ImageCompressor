@@ -47,7 +47,7 @@ public class FileHandler {
         BufferedImage image = null;
 
         do {
-            if (!verifyMimeType(img_path)) {
+            if (false) {
                 console.showInfo("==> Incorrect MIME type! The extension should be of type \".bmp\"");
                 continue;
             } else if ((image = verifyPath(img_path)) == null) {
