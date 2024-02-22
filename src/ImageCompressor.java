@@ -51,7 +51,7 @@ public class ImageCompressor {
             FileHandler.writeLineToFile(myWriter, "DIMENSIONS");
             FileHandler.writeLineToFile(myWriter, compressed_rows + " " + compressed_cols);
             FileHandler.writeLineToFile(myWriter, "COLORS");
-            FileHandler.writeLineToFile(myWriter, colors.stream().map(Object::toString).collect(Collectors.joining(",")));
+            FileHandler.writeLineToFile(myWriter, colors.stream().map(Object::toString).collect(Collectors.joining("")));
             FileHandler.writeLineToFile(myWriter, "PIXELS");
             FileHandler.writeLineToFile(myWriter, buildPixelMatrixString(compressed_pixels));
             FileHandler.writeLineToFile(myWriter, "EOF");
@@ -134,10 +134,10 @@ public class ImageCompressor {
                                 compressed_pixels_buffer = new Color[rows][cols];
                             }
                             case COLORS -> {
-                                String[] color_strings = line.replace("\n", "").split(",");
+                                String color_strings = line.replace("\n", "");
 
-                                for (String colorString : color_strings) {
-                                    Color curr_color = new Color(Integer.parseInt(colorString, 16));
+                                for (int i = 0; i < color_strings.length(); i += 6) {
+                                    Color curr_color = new Color(Integer.parseInt(color_strings.substring(i, i+6), 16));
                                     colors_buffer.add(curr_color);
                                 }
                             }
@@ -201,7 +201,7 @@ public class ImageCompressor {
 
         for (int x = 0; x < cols; x++) {
             for (int y = 0; y < rows; y++) {
-                pixel_buffer[y][x] = new Color(image.getRGB(x,y), true);
+                pixel_buffer[y][x] = new Color(image.getRGB(x,y), false);
             }
         }
 
@@ -247,13 +247,11 @@ public class ImageCompressor {
         float x_diff = (p.x - x1) / (x2 - x1);
         float y_diff = (p.y - y1) / (y2 - y1);
 
-        Color interpolatedColor = new Color(
+        return new Color(
                 interpolate(q11.getRed(), q12.getRed(), q21.getRed(), q22.getRed(), x_diff, y_diff),
                 interpolate(q11.getGreen(), q12.getGreen(), q21.getGreen(), q22.getGreen(), x_diff, y_diff),
                 interpolate(q11.getBlue(), q12.getBlue(), q21.getBlue(), q22.getBlue(), x_diff, y_diff)
         );
-
-        return interpolatedColor;
     }
 
     private static int interpolate(int q11, int q12, int q21, int q22, float x_diff, float y_diff) {
