@@ -2,7 +2,6 @@ import tools.FileHandler;
 import tools.IOConsole;
 import tools.Tuple;
 
-import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
@@ -202,7 +201,7 @@ public class ImageCompressor {
 
         for (int x = 0; x < cols; x++) {
             for (int y = 0; y < rows; y++) {
-                pixel_buffer[y][x] = new Color(image.getRGB(x,y), false);
+                pixel_buffer[y][x] = new Color(image.getRGB(x,y), true);
             }
         }
 
@@ -266,5 +265,4 @@ public class ImageCompressor {
 
         return b1 + b2 + b3 + b4;
     }
-
 }
