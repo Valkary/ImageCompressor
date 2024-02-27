@@ -48,14 +48,17 @@ public class FileHandler {
         BufferedImage image = null;
 
         do {
-            if (false) {
+            if (!verifyMimeType(img_path)) {
                 console.showInfo("==> Incorrect MIME type! The extension should be of type \".bmp\"");
+                img_path = console.getString("Relative path to file: ");
                 continue;
             } else if ((image = verifyPath(img_path)) == null) {
                 console.showInfo("==> File path is incorrect!");
+                img_path = console.getString("Relative path to file: ");
                 continue;
             } else if (!verifyDimensions(image)) {
                 console.showInfo("==> Dimensions cannot be less than 1x1 pixels");
+                img_path = console.getString("Relative path to file: ");
                 continue;
             }
 
@@ -101,11 +104,7 @@ public class FileHandler {
      * @return boolean
      */
     public static boolean verifyDimensions(BufferedImage img) {
-        if (img.getWidth() <= 0 || img.getHeight() <= 0) {
-            return false;
-        }
-
-        return true;
+        return img.getWidth() > 0 && img.getHeight() > 0;
     }
 
     public static BufferedImage verifyPath(String path) {

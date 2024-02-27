@@ -11,6 +11,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class ImageCompressor {
+    private enum DECOMPRESSION_STAGES {
+        COMPRESSION_FACTOR,
+        DIMENSIONS,
+        COLORS,
+        PIXELS,
+        EOF
+    };
+
     private static final IOConsole console = new IOConsole();
 
     public static void compressImage(int compression_factor, String file_path, String output_file_name) {
@@ -95,32 +103,39 @@ public class ImageCompressor {
     };
 
     public static void decompressImage(String file_path, String img_name) {
+        console.showInfo("==> Starting decompression process...");
         try {
             BufferedReader reader = new BufferedReader(new FileReader(file_path));
-
-            enum STAGES {
-                COMPRESSION_FACTOR,
-                DIMENSIONS,
-                COLORS,
-                PIXELS,
-                EOF
-            };
-
-            STAGES stage = STAGES.COMPRESSION_FACTOR;
+            DECOMPRESSION_STAGES stage = DECOMPRESSION_STAGES.COMPRESSION_FACTOR;
             int rows = 0, cols = 0, curr_row = 0, compression_factor = 1;
-
-            List<Color> colors_buffer = new ArrayList<>();
+            Color[] colors_buffer = null;
             Color[][] compressed_pixels_buffer = null;
 
+            console.showInfo("==> Reading compressed file...");
             do {
                 String line = reader.readLine();
 
                 switch (line) {
-                    case "EOF" -> stage = STAGES.EOF;
-                    case "COLORS" -> stage = STAGES.COLORS;
-                    case "PIXELS" -> stage = STAGES.PIXELS;
-                    case "COMPRESSION" -> stage = STAGES.COMPRESSION_FACTOR;
-                    case "DIMENSIONS" -> stage = STAGES.DIMENSIONS;
+                    case "EOF" -> {
+                        stage = DECOMPRESSION_STAGES.EOF;
+                        console.showInfo("==> Reached end of compressed file.");
+                    }
+                    case "COLORS" -> {
+                        stage = DECOMPRESSION_STAGES.COLORS;
+                        console.showInfo("==> Building color array...");
+                    }
+                    case "PIXELS" -> {
+                        stage = DECOMPRESSION_STAGES.PIXELS;
+                        console.showInfo("==> Generating pixels in image...");
+                    }
+                    case "COMPRESSION" -> {
+                        stage = DECOMPRESSION_STAGES.COMPRESSION_FACTOR;
+                        console.showInfo("==> Reading compression factor....");
+                    }
+                    case "DIMENSIONS" -> {
+                        stage = DECOMPRESSION_STAGES.DIMENSIONS;
+                        console.showInfo("==> Reading image dimensions...");
+                    }
                     default -> {
                         switch (stage) {
                             case COMPRESSION_FACTOR -> {
@@ -136,9 +151,11 @@ public class ImageCompressor {
                             case COLORS -> {
                                 String color_strings = line.replace("\n", "");
 
+                                colors_buffer = new Color[color_strings.length() / 6];
+
                                 for (int i = 0; i < color_strings.length(); i += 6) {
                                     Color curr_color = new Color(Integer.parseInt(color_strings.substring(i, i+6), 16));
-                                    colors_buffer.add(curr_color);
+                                    colors_buffer[i / 6] = curr_color;
                                 }
                             }
                             case PIXELS -> {
@@ -148,7 +165,7 @@ public class ImageCompressor {
                         }
                     }
                 }
-            } while (!stage.equals(STAGES.EOF));
+            } while (!stage.equals(DECOMPRESSION_STAGES.EOF));
 
             BufferedImage output = buildDecompressedImage(compressed_pixels_buffer, cols, rows, compression_factor);
             try {
@@ -208,11 +225,11 @@ public class ImageCompressor {
         return pixel_buffer;
     }
 
-    private static void generatePixelDataFromCompressedFile(String row_pixels, Color[][] pixels, List<Color> colors, int curr_row, int total_cols) {
+    private static void generatePixelDataFromCompressedFile(String row_pixels, Color[][] pixels, Color[] colors, int curr_row, int total_cols) {
         String[] pixel_strings = row_pixels.replace("\n", "").split(",");
 
         for (int col = 0; col < total_cols; col++) {
-            pixels[curr_row][col] = colors.get(Integer.parseInt(pixel_strings[col]));
+            pixels[curr_row][col] = colors[Integer.parseInt(pixel_strings[col])];
         }
     };
 
