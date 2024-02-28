@@ -69,36 +69,6 @@ public class FileHandler {
     }
 
     /**
-     * This function verifies that a given path returns a valid BufferedImage with an array of accepted mime types
-     * @param console Console helper
-     * @return Returns a verified BufferedImage
-     */
-    public static BufferedImage getBufferedImage(IOConsole console, String[] mime_types) {
-        boolean verified = false;
-        String path;
-        BufferedImage image = null;
-
-        do {
-            path = console.getString("Relative path to file: ");
-
-            if (!verifyMimeType(path, mime_types)) {
-                console.showInfo("==> Incorrect MIME type! The extension should be an accepted mime type");
-                continue;
-            } else if ((image = verifyPath(path)) == null) {
-                console.showInfo("==> File path is incorrect!");
-                continue;
-            } else if (!verifyDimensions(image)) {
-                console.showInfo("==> Dimensions cannot be less than 1x1 pixels");
-                continue;
-            }
-
-            verified = true;
-        } while (!verified);
-
-        return image;
-    }
-
-    /**
      * This function verifies the image dimensions are valid
      * @param img BufferedImage
      * @return boolean
@@ -119,21 +89,6 @@ public class FileHandler {
     public static boolean verifyMimeType(String path) {
         String[] split_path = path.split("\\.");
         return split_path[split_path.length - 1].equals("bmp");
-    }
-
-    public static boolean verifyMimeType(String path, String[] mime_types) {
-        String[] split_path = path.split("\\.");
-        List<String> list = Arrays.asList(mime_types);
-
-        return list.contains(split_path[split_path.length - 1]);
-    }
-
-    public static void writeLineToFile(FileWriter writer, String line) throws IOException {
-        try {
-            writer.write(line + "\n");
-        } catch (IOException e) {
-            throw new IOException(e);
-        }
     }
 
     public static void renderBufferedImage(String name, String format, BufferedImage image) throws IOException {
