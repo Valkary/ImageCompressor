@@ -13,12 +13,49 @@ import java.util.List;
  * This class verifies an image validity from the file path and returns a BufferedImage
  */
 public class FileHandler {
+    private static IOConsole console = null;
+    private static FileHandler instance = null;
+
+    /**
+     * Private constructor to initialize a `FileHandler` instance with the specified console.
+     *
+     * @param console The input/output console used for displaying messages.
+     */
+    private FileHandler(IOConsole console) {
+        this.console = console;
+    }
+
+    /**
+     * Gets a unique instance of the `FileHandler` class.
+     *
+     * @return The unique instance of `FileHandler`.
+     * @throws Exception If the instance is not found.
+     */
+    public static FileHandler getInstance() throws Exception {
+        if (instance == null) {
+            throw new Exception("Instance not found");
+        }
+        return instance;
+    }
+
+    /**
+     * Gets a unique instance of the `FileHandler` class with the specified console.
+     *
+     * @param console The input/output console used for displaying messages.
+     * @return The unique instance of `FileHandler`.
+     */
+    public static FileHandler getInstance(IOConsole console) {
+        if (instance == null) {
+            instance = new FileHandler(console);
+        }
+        return instance;
+    }
+
     /**
      * This function verifies that a given path returns a valid BufferedImage with .bmp file format
-     * @param console Console helper
      * @return Returns a verified BufferedImage
      */
-    public static BufferedImage getBufferedImage(IOConsole console) {
+    public BufferedImage getBufferedImage() {
         boolean verified = false;
         String path;
         BufferedImage image = null;
@@ -43,7 +80,11 @@ public class FileHandler {
         return image;
     }
 
-    public static BufferedImage getBufferedImage(IOConsole console, String img_path) {
+    /**
+     * This function verifies that a given path returns a valid BufferedImage with .bmp file format
+     * @return Returns a verified BufferedImage
+     */
+    public BufferedImage getBufferedImage(String img_path) {
         boolean verified = false;
         BufferedImage image = null;
 
@@ -73,11 +114,17 @@ public class FileHandler {
      * @param img BufferedImage
      * @return boolean
      */
-    public static boolean verifyDimensions(BufferedImage img) {
+    private boolean verifyDimensions(BufferedImage img) {
         return img.getWidth() > 0 && img.getHeight() > 0;
     }
 
-    public static BufferedImage verifyPath(String path) {
+    /**
+     * Verifies the existence of an image file at the specified path and reads it into a `BufferedImage`.
+     *
+     * @param path The path to the image file.
+     * @return The loaded `BufferedImage`, or `null` if an error occurs.
+     */
+    private BufferedImage verifyPath(String path) {
         try {
             File file = new File(path);
             return ImageIO.read(file);
@@ -86,12 +133,26 @@ public class FileHandler {
         }
     }
 
-    public static boolean verifyMimeType(String path) {
-        String[] split_path = path.split("\\.");
-        return split_path[split_path.length - 1].equals("bmp");
+    /**
+     * Verifies that the file extension corresponds to the BMP image format.
+     *
+     * @param path The path to the image file.
+     * @return `true` if the file extension is BMP, `false` otherwise.
+     */
+    private boolean verifyMimeType(String path) {
+        String[] splitPath = path.split("\\.");
+        return splitPath[splitPath.length - 1].equalsIgnoreCase("bmp");
     }
 
-    public static void renderBufferedImage(String name, String format, BufferedImage image) throws IOException {
+    /**
+     * Renders the provided `BufferedImage` to a file with the specified name and format.
+     *
+     * @param name   The base name of the output file.
+     * @param format The desired image format (e.g., "bmp").
+     * @param image  The `BufferedImage` to be saved.
+     * @throws IOException If an I/O error occurs during writing.
+     */
+    public void renderBufferedImage(String name, String format, BufferedImage image) throws IOException {
         File output = new File(name + "." + format);
 
         try {
