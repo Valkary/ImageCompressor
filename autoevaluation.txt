@@ -1,0 +1,6 @@
+Compress image file – Correct
+Decompress image file – Minor
+Does it have unnecessary code? - Correct
+Does it properly uses OOP? - Minor
+Is the code reusable? - Correct
+Is the code flexible? - Minor
